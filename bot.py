@@ -331,6 +331,17 @@ def analyze_asset(name, info):
         print(f"Error analyzing {name}: {e}")
 
 def run():
+    from datetime import datetime
+import pytz
+
+def is_market_open():
+    et = pytz.timezone('America/New_York')
+    now = datetime.now(et)
+    if now.weekday() >= 5:  # Saturday or Sunday
+        return False
+    market_open = now.replace(hour=9, minute=30, second=0)
+    market_close = now.replace(hour=16, minute=0, second=0)
+    return market_open <= now <= market_close
     print("Starting AI Day Trading Signal Bot")
     print(f"Watchlist: {list(WATCHLIST.keys())}")
     print(f"Scanning every 15 minutes")
