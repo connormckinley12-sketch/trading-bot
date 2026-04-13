@@ -15,21 +15,27 @@ WATCHLIST = {
 }
 
 def get_crypto_candles(symbol, interval="15m", limit=100):
+    # Convert symbol format: BTCUSDT -> BTC-USD
+    coin = symbol.replace("USDT", "")
+    cb_symbol = f"{coin}-USD"
+    
     resp = requests.get(
-        "https://api.binance.com/api/v3/klines",
-        params={"symbol": symbol, "interval": interval, "limit": limit},
+        f"https://api.exchange.coinbase.com/products/{cb_symbol}/candles",
+        params={"granularity": 900},  # 900 seconds = 15 minutes
         timeout=10
     )
     candles = resp.json()
     if not isinstance(candles, list):
         raise Exception(f"Unexpected response: {candles}")
-    opens  = [float(c[1]) for c in candles if isinstance(c, list)]
-    highs  = [float(c[2]) for c in candles if isinstance(c, list)]
-    lows   = [float(c[3]) for c in candles if isinstance(c, list)]
-    closes = [float(c[4]) for c in candles if isinstance(c, list)]
-    vols   = [float(c[5]) for c in candles if isinstance(c, list)]
+    
+    # Coinbase format: [time, low, high, open, close, volume]
+    candles = sorted(candles, key=lambda x: x[0])
+    opens  = [float(c[3]) for c in candles]
+    highs  = [float(c[2]) for c in candles]
+    lows   = [float(c[1]) for c in candles]
+    closes = [float(c[4]) for c in candles]
+    vols   = [float(c[5]) for c in candles]
     return opens, highs, lows, closes, vols
-
 def get_stock_candles(symbol):
     resp = requests.get(
         f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
