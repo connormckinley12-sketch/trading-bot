@@ -356,7 +356,7 @@ def run():
             time.sleep(3)
 
         print(f"\nNext scan in 15 min...")
-        time.sleep(900)
+        time.sleep(300)
 
 if __name__ == "__main__":
     run()
