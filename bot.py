@@ -21,11 +21,13 @@ def get_crypto_candles(symbol, interval="15m", limit=100):
         timeout=10
     )
     candles = resp.json()
-    opens  = [float(c[1]) for c in candles]
-    highs  = [float(c[2]) for c in candles]
-    lows   = [float(c[3]) for c in candles]
-    closes = [float(c[4]) for c in candles]
-    vols   = [float(c[5]) for c in candles]
+    if not isinstance(candles, list):
+        raise Exception(f"Unexpected response: {candles}")
+    opens  = [float(c[1]) for c in candles if isinstance(c, list)]
+    highs  = [float(c[2]) for c in candles if isinstance(c, list)]
+    lows   = [float(c[3]) for c in candles if isinstance(c, list)]
+    closes = [float(c[4]) for c in candles if isinstance(c, list)]
+    vols   = [float(c[5]) for c in candles if isinstance(c, list)]
     return opens, highs, lows, closes, vols
 
 def get_stock_candles(symbol):
