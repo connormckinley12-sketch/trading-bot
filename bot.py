@@ -282,6 +282,9 @@ def send_discord_alert(asset, price, strategy, ifvgs):
     print(f"Sent Discord alert for {asset}")
 
 def analyze_asset(name, info):
+    if info["type"] == "stock" and not is_market_open():
+    print(f"  Market closed, skipping {name}")
+    return
     print(f"\nAnalyzing {name}...")
     try:
         if info["type"] == "crypto":
