@@ -321,13 +321,20 @@ SMC SETUP: [key pattern]
 ORB NOTE: [how ORB affects this trade]
 INVALIDATION: [what invalidates trade]"""
 
-    msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=600,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return msg.content[0].text
-
+   for attempt in range(3):
+        try:
+            msg = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=600,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return msg.content[0].text
+        except Exception as e:
+            if "overloaded" in str(e).lower() and attempt < 2:
+                print(f"  ⏳ Anthropic busy, retrying in 10s...")
+                time.sleep(10)
+            else:
+                raise
 # ─── DISCORD ALERT ────────────────────────────────────────────
 def send_discord(asset, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_high, orb_low):
     lines  = strategy.strip().split('\n')
