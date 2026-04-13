@@ -9,6 +9,7 @@ import pytz
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1493061685349584948/lqJsz0Bov6a67p9mvz8OTyzHH-5QguAwWrsSitEVmr2kvOe5ebA0YD1GockTUZJqbxxi"
 NEWS_API_KEY = "ce3679f211b6484ca94be0db9022d7d5"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+MIN_CONFIDENCE = 8
 
 WATCHLIST = {
     "BTC":  {"type": "crypto", "symbol": "BTC-USD",  "news_query": "Bitcoin BTC crypto"},
