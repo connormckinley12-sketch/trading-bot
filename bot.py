@@ -12,7 +12,7 @@ NEWS_API_KEY      = "ce3679f211b6484ca94be0db9022d7d5"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 MIN_CONFIDENCE    = 8
 MIN_RR            = 1.5
-SCAN_INTERVAL     = 300
+SCAN_INTERVAL     = 600
 ET                = pytz.timezone('America/New_York')
 
 WATCHLIST = {
