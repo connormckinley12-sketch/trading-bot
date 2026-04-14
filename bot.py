@@ -447,9 +447,12 @@ def run():
         if macro:
             print(f"Macro: {macro[0][:70]}...")
 
-        for name, info in WATCHLIST.items():
-            analyze(name, info, macro)
-            time.sleep(2)
+        if is_market_open():
+    for name, info in WATCHLIST.items():
+        analyze(name, info, macro)
+        time.sleep(2)
+else:
+    print("  Market closed — skipping all assets")
 
         print(f"\n⏳ Next scan in {SCAN_INTERVAL//60} min...")
         time.sleep(SCAN_INTERVAL)
