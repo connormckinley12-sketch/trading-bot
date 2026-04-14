@@ -297,20 +297,20 @@ def send_discord(asset, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_
         if ':' in line:
             k, v = line.split(':', 1)
             parsed[k.strip()] = v.strip()
-    signal  = parsed.get('SIGNAL', 'NEUTRAL')
-    conf    = parsed.get('CONFIDENCE', '?')
-    entry   = parsed.get('ENTRY', '?')
-    stop    = parsed.get('STOP LOSS', '?')
-    tp1     = parsed.get('TAKE PROFIT 1', '?')
-    tp2     = parsed.get('TAKE PROFIT 2', '?')
-    rr      = parsed.get('RISK/REWARD', '?')
-    tf      = parsed.get('TIMEFRAME', '?')
-    reason  = parsed.get('REASON', '')
-    risk    = parsed.get('KEY RISK', '')
-    smc     = parsed.get('SMC SETUP', '')
-    orb_note= parsed.get('ORB NOTE', '')
-    invalid = parsed.get('INVALIDATION', '')
-    emoji   = "🟢" if "BUY" in signal else "🔴"
+    signal   = parsed.get('SIGNAL', 'NEUTRAL')
+    conf     = parsed.get('CONFIDENCE', '?')
+    entry    = parsed.get('ENTRY', '?')
+    stop     = parsed.get('STOP LOSS', '?')
+    tp1      = parsed.get('TAKE PROFIT 1', '?')
+    tp2      = parsed.get('TAKE PROFIT 2', '?')
+    rr       = parsed.get('RISK/REWARD', '?')
+    tf       = parsed.get('TIMEFRAME', '?')
+    reason   = parsed.get('REASON', '')
+    risk     = parsed.get('KEY RISK', '')
+    smc      = parsed.get('SMC SETUP', '')
+    orb_note = parsed.get('ORB NOTE', '')
+    invalid  = parsed.get('INVALIDATION', '')
+    emoji    = "🟢" if "BUY" in signal else "🔴"
     ifvg_txt = f"\n⚡ **IFVG:** {ifvgs[0]['type']} ${ifvgs[0]['zone_bottom']:.2f}-${ifvgs[0]['zone_top']:.2f}" if ifvgs else ""
     liq_txt  = f"\n💧 **Liquidity:** {liquidity[0]['desc']}" if liquidity else ""
     orb_txt  = f"\n📊 **ORB:** {orb_signal} | High ${orb_high:.2f} Low ${orb_low:.2f}" if orb_signal and orb_signal != "INSIDE_RANGE" else ""
@@ -336,9 +336,6 @@ def analyze(name, info, macro):
     print(f"\n  [{name}]", end=" ")
     try:
         if info["type"] == "stock":
-            if not is_market_open():
-                print("market closed")
-                return
             if is_opening_range_window():
                 print("⏳ opening range window")
                 return
@@ -351,21 +348,21 @@ def analyze(name, info, macro):
             print("not enough data")
             return
 
-        price        = closes[-1]
-        rsi          = calc_rsi(closes)
-        macd, msig   = calc_macd(closes)
-        vwap         = calc_vwap(closes, vols)
+        price         = closes[-1]
+        rsi           = calc_rsi(closes)
+        macd, msig    = calc_macd(closes)
+        vwap          = calc_vwap(closes, vols)
         bb_u, _, bb_l = calc_bollinger(closes)
-        ema9         = calc_ema(closes, 9)
-        ema21        = calc_ema(closes, 21)
-        ema50        = calc_ema(closes, 50)
-        atr          = calc_atr(highs, lows, closes)
-        fvgs, ifvgs  = find_fvg(opens, highs, lows, closes)
-        obs          = find_order_blocks(opens, highs, lows, closes)
-        bos_choch    = find_bos_choch(closes, highs, lows)
-        liquidity    = find_liquidity_sweeps(highs, lows, closes)
+        ema9          = calc_ema(closes, 9)
+        ema21         = calc_ema(closes, 21)
+        ema50         = calc_ema(closes, 50)
+        atr           = calc_atr(highs, lows, closes)
+        fvgs, ifvgs   = find_fvg(opens, highs, lows, closes)
+        obs           = find_order_blocks(opens, highs, lows, closes)
+        bos_choch     = find_bos_choch(closes, highs, lows)
+        liquidity     = find_liquidity_sweeps(highs, lows, closes)
         resistances, supports = find_support_resistance(highs, lows, closes)
-        headlines    = get_news(info["news_query"])
+        headlines     = get_news(info["news_query"])
         orb_signal, orb_high, orb_low = get_orb_signal(name, price)
 
         trend = "▲" if ema9 > ema21 else "▼"
@@ -430,29 +427,30 @@ def run():
     print(f"Watchlist: {list(WATCHLIST.keys())}")
     print(f"Filters: STRONG | Confidence {MIN_CONFIDENCE}+ | R/R {MIN_RR}+")
     print(f"ORB: 9:30-9:45 observe, then trade breakouts only")
-    print(f"Scan: every {SCAN_INTERVAL//60} min\n")
+    print(f"Market hours only | Scan every {SCAN_INTERVAL//60} min\n")
 
     while True:
         now = get_et_now()
         print(f"{'='*50}")
         print(f"🔍 {now.strftime('%I:%M %p ET | %A %b %d')}", end="")
+
+        if not is_market_open():
+            print(" 🔴 CLOSED — sleeping until open")
+            time.sleep(SCAN_INTERVAL)
+            continue
+
         if is_opening_range_window():
             print(" ⏳ ORB WINDOW")
-        elif is_market_open():
-            print(" 🟢 OPEN")
         else:
-            print(" 🔴 CLOSED")
+            print(" 🟢 OPEN")
 
         macro = get_macro()
         if macro:
             print(f"Macro: {macro[0][:70]}...")
 
-        if is_market_open():
-    for name, info in WATCHLIST.items():
-        analyze(name, info, macro)
-        time.sleep(2)
-else:
-    print("  Market closed — skipping all assets")
+        for name, info in WATCHLIST.items():
+            analyze(name, info, macro)
+            time.sleep(2)
 
         print(f"\n⏳ Next scan in {SCAN_INTERVAL//60} min...")
         time.sleep(SCAN_INTERVAL)
