@@ -35,6 +35,14 @@ def is_market_open():
     c = now.replace(hour=16, minute=0,  second=0, microsecond=0)
     return o <= now <= c
 
+def is_premarket():
+    now = get_et_now()
+    if now.weekday() >= 5:
+        return False
+    start = now.replace(hour=8,  minute=0, second=0, microsecond=0)
+    end   = now.replace(hour=9, minute=30, second=0, microsecond=0)
+    return start <= now <= end
+
 def is_opening_range_window():
     now = get_et_now()
     if now.weekday() >= 5:
@@ -226,13 +234,15 @@ def get_ai_strategy(asset, price, atr, rsi, macd, msig, vwap,
                     bb_u, bb_l, ema9, ema21, ema50,
                     fvgs, ifvgs, obs, bos_choch, liquidity,
                     resistances, supports, headlines, macro,
-                    orb_signal, orb_high, orb_low):
+                    orb_signal, orb_high, orb_low, is_pre):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     orb_text = ""
     if orb_signal:
         orb_text = f"\nORB High: ${orb_high:.2f} | ORB Low: ${orb_low:.2f} | Status: {orb_signal}"
     liq_descs = [l["desc"] for l in liquidity]
-    prompt = f"""You are an elite SMC + ORB day trader. Analyze {asset} strictly.
+    premarket_note = "\nNOTE: This is a PRE-MARKET scan. Focus on key levels and bias for the open. Be extra cautious with signals." if is_pre else ""
+
+    prompt = f"""You are an elite SMC + ORB day trader. Analyze {asset} strictly.{premarket_note}
 
 RULES:
 - If ORB established and price INSIDE_RANGE → NEUTRAL, wait for breakout
@@ -240,6 +250,7 @@ RULES:
 - Only STRONG BUY or STRONG SELL when 5+ factors align
 - R/R must be 1.5+ minimum
 - Never fight confirmed ORB breakout direction
+- On high volatility macro news days → be extra strict, raise bar to 6+ factors
 
 PRICE: ${price:,.2f} | ATR: ${atr:.2f}{orb_text}
 
@@ -290,7 +301,7 @@ INVALIDATION: [what invalidates trade]"""
             else:
                 raise
 
-def send_discord(asset, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_high, orb_low):
+def send_discord(asset, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_high, orb_low, is_pre):
     lines  = strategy.strip().split('\n')
     parsed = {}
     for line in lines:
@@ -311,10 +322,11 @@ def send_discord(asset, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_
     orb_note = parsed.get('ORB NOTE', '')
     invalid  = parsed.get('INVALIDATION', '')
     emoji    = "🟢" if "BUY" in signal else "🔴"
+    pre_tag  = "🌅 **PRE-MARKET SIGNAL**\n" if is_pre else ""
     ifvg_txt = f"\n⚡ **IFVG:** {ifvgs[0]['type']} ${ifvgs[0]['zone_bottom']:.2f}-${ifvgs[0]['zone_top']:.2f}" if ifvgs else ""
     liq_txt  = f"\n💧 **Liquidity:** {liquidity[0]['desc']}" if liquidity else ""
     orb_txt  = f"\n📊 **ORB:** {orb_signal} | High ${orb_high:.2f} Low ${orb_low:.2f}" if orb_signal and orb_signal != "INSIDE_RANGE" else ""
-    msg = f"""{emoji} **{asset} — {signal}** | Confidence: {conf}/10
+    msg = f"""{pre_tag}{emoji} **{asset} — {signal}** | Confidence: {conf}/10
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💰 **Price:** ${price:,.2f} | ATR: ${atr:.2f}
 📍 **Entry:** {entry}
@@ -332,10 +344,13 @@ def send_discord(asset, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_
     resp = requests.post(DISCORD_WEBHOOK, json={"content": msg}, timeout=10)
     print(f"  {'✅ Discord sent!' if resp.status_code == 204 else f'❌ Discord error {resp.status_code}'}")
 
-def analyze(name, info, macro):
+def analyze(name, info, macro, is_pre=False):
     print(f"\n  [{name}]", end=" ")
     try:
         if info["type"] == "stock":
+            if is_pre:
+                print("skipping stocks in premarket")
+                return
             if is_opening_range_window():
                 print("⏳ opening range window")
                 return
@@ -382,7 +397,7 @@ def analyze(name, info, macro):
             bb_u, bb_l, ema9, ema21, ema50,
             fvgs, ifvgs, obs, bos_choch, liquidity,
             resistances, supports, headlines, macro,
-            orb_signal, orb_high, orb_low
+            orb_signal, orb_high, orb_low, is_pre
         )
 
         lines  = strategy.strip().split('\n')
@@ -410,7 +425,7 @@ def analyze(name, info, macro):
 
         if "STRONG" in signal and conf >= MIN_CONFIDENCE and rr_val >= MIN_RR:
             print(" 🚨 ALERTING!")
-            send_discord(name, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_high, orb_low)
+            send_discord(name, price, strategy, ifvgs, liquidity, atr, orb_signal, orb_high, orb_low, is_pre)
         else:
             reasons = []
             if "STRONG" not in signal: reasons.append("not STRONG")
@@ -426,31 +441,37 @@ def run():
     print("🤖 AI Day Trading Bot v2 (ORB Edition)")
     print(f"Watchlist: {list(WATCHLIST.keys())}")
     print(f"Filters: STRONG | Confidence {MIN_CONFIDENCE}+ | R/R {MIN_RR}+")
-    print(f"ORB: 9:30-9:45 observe, then trade breakouts only")
-    print(f"Market hours only | Scan every {SCAN_INTERVAL//60} min\n")
+    print(f"Pre-market: 8:00-9:30 AM ET (crypto only)")
+    print(f"Market hours: 9:30 AM-4:00 PM ET (all assets)")
+    print(f"Scan every {SCAN_INTERVAL//60} min\n")
 
     while True:
         now = get_et_now()
         print(f"{'='*50}")
         print(f"🔍 {now.strftime('%I:%M %p ET | %A %b %d')}", end="")
 
-        if not is_market_open():
-            print(" 🔴 CLOSED — sleeping until open")
-            time.sleep(SCAN_INTERVAL)
-            continue
-
-        if is_opening_range_window():
-            print(" ⏳ ORB WINDOW")
-        else:
-            print(" 🟢 OPEN")
-
         macro = get_macro()
-        if macro:
-            print(f"Macro: {macro[0][:70]}...")
 
-        for name, info in WATCHLIST.items():
-            analyze(name, info, macro)
-            time.sleep(2)
+        if is_premarket():
+            print(" 🌅 PRE-MARKET")
+            if macro:
+                print(f"Macro: {macro[0][:70]}...")
+            for name, info in WATCHLIST.items():
+                if info["type"] == "crypto":
+                    analyze(name, info, macro, is_pre=True)
+                    time.sleep(2)
+        elif is_market_open():
+            if is_opening_range_window():
+                print(" ⏳ ORB WINDOW")
+            else:
+                print(" 🟢 OPEN")
+            if macro:
+                print(f"Macro: {macro[0][:70]}...")
+            for name, info in WATCHLIST.items():
+                analyze(name, info, macro, is_pre=False)
+                time.sleep(2)
+        else:
+            print(" 🔴 CLOSED — sleeping")
 
         print(f"\n⏳ Next scan in {SCAN_INTERVAL//60} min...")
         time.sleep(SCAN_INTERVAL)
