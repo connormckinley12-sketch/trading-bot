@@ -7,7 +7,7 @@ from datetime import datetime
 import anthropic
 import pytz
 
-DISCORD_WEBHOOK   = "https://discord.com/api/webhooks/1493061685349584948/lqJsz0Bov6a67p9mvz8OTyzHH-5QguAwWrsSitEVmr2kvOe5ebA0YD1GockTUZJqbxxi"
+DISCORD_WEBHOOK   = "https://discord.com/api/webhooks/1500484598998765689/7tBdeNfhdgrWz_Rseptr_n1qqJDrscFz9G9SF4LdsGODh9YygWwV-nsSM1JpTNMnS5bx"
 NEWS_API_KEY      = "ce3679f211b6484ca94be0db9022d7d5"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 MIN_CONFIDENCE    = 8
